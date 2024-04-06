@@ -8,7 +8,7 @@ class Repositorio {
     var db = await SQLiteDataBase().obterDataBase();
     await db.rawQuery('DELETE from tarefas');
     for (Book book in books){
-      await db.rawInsert('INSERT INTO books (title) VALUES (?)',[book.title]);
+      await db.rawInsert('INSERT INTO books (title, realizado) VALUES (?,?)',[book.title, book.realizado]);
     }
   }
 
@@ -18,7 +18,11 @@ class Repositorio {
     var result = await db.rawQuery('SELECT * FROM books');
     for (var element in result) {
       books.add(Book(title:
-      element["title"].toString()));
+      element["title"].toString(),
+        realizado: int.parse(element["realizado"].toString()) == 1
+            ? true
+            : false,
+      ));
     }
     return books;
   }

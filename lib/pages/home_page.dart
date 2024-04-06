@@ -1,154 +1,125 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:livros/models/book.dart';
+import 'package:livros/repositories/repositorio.dart';
 
-void main() => runApp(MyApp());
 
-class MyApp extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Google Books API Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: BookSearchPage(),
-    );
-  }
+  State<HomePage> createState() => _HomePageState();
 }
 
-class BookSearchPage extends StatefulWidget {
-  @override
-  _BookSearchPageState createState() => _BookSearchPageState();
-}
+class _HomePageState extends State<HomePage> {
+  TextEditingController controlerBook = TextEditingController();
 
-class _BookSearchPageState extends State<BookSearchPage> {
-  TextEditingController _controller = TextEditingController();
-  List<Book> _books = [];
-  List<Book> _readingList = [];
-
-  Future<void> _searchBooks(String query) async {
-    final String apiKey = 'API KEY'; // Troque para sua chave de API do Google Books
-    final String apiUrl =
-        'https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=10&key=$apiKey';
-
-    final response = await http.get(Uri.parse(apiUrl));
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-
-      setState(() {
-        _books.clear();
-        _books.addAll((data['items'] as List).map((item) => Book.fromJson(item)).toList());
-      });
-    } else {
-      throw Exception('Failed to load books');
-    }
-  }
-
-  Future<void> _addBookToReadingList(Book book) async {
-    final database = await _openDatabase();
-    await database.insert('reading_list', book.toMap());
-    await _fetchReadingList();
-  }
-
-  Future<Database> _openDatabase() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = join(directory.path, 'reading_list.db');
-
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) {
-        return db.execute(
-          'CREATE TABLE reading_list(id INTEGER PRIMARY KEY, title TEXT)',
-        );
-      },
-    );
-  }
-
-  Future<void> _fetchReadingList() async {
-    final database = await _openDatabase();
-    final List<Map<String, dynamic>> books = await database.query('reading_list');
-
-    setState(() {
-      _readingList.clear();
-      _readingList.addAll(books.map((book) => Book.fromMap(book)).toList());
-    });
-  }
+  Repositorio _repositorio = Repositorio();
+  List<Book> books = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchReadingList();
+    _repositorio.recuperarLivro().then((dados) {
+      setState(() {
+        books = dados;
+      });
+    });
+  }
+
+  void _adicionarLivro() {
+    setState(() {
+      Book book = Book(title: controlerBook.text, realizado: false);
+      books.add(book);
+      controlerBook.text = '';
+      _repositorio.salvarLivro(books);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Google Books API Demo'),
+        backgroundColor: Colors.blueGrey,
+        centerTitle: true,
+        title: Text(
+            "Lista de livros"),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: 'Digite o nome do livro',
-              ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 0, 8.0, 10.0),
+            child: Row(
+              children: [
+                Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(labelText: "Novo Livro"),
+                      controller: controlerBook,
+                    )),
+                ElevatedButton(onPressed: _adicionarLivro, child: Text("ADD"))
+              ],
             ),
-            SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () async {
-                await _searchBooks(_controller.text);
-              },
-              child: Text('Enviar'),
-            ),
-            SizedBox(height: 16.0),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _books.length,
-                itemBuilder: (context, index) {
-                  final book = _books[index];
-                  return ListTile(
-                    title: Text(book.title),
-                    trailing: IconButton(
-                      icon: Icon(Icons.add),
-                      onPressed: () async {
-                        await _addBookToReadingList(book);
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-            SizedBox(height: 16.0),
-            Text(
-              'Lista de Leitura',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8.0),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _readingList.length,
-                itemBuilder: (context, index) {
-                  final book = _readingList[index];
-                  return ListTile(
-                    title: Text(book.title),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
+          Expanded(child: ListView.builder(
+              itemCount: books.length,
+              itemBuilder: contruirListView))
+        ],
+      ),
+    );
+  }
+
+  Widget contruirListView(BuildContext context, int index) {
+    return Dismissible(
+      key: Key(DateTime
+          .now()
+          .microsecondsSinceEpoch
+          .toString()),
+      background: Container(
+        color: Colors.red,
+        child: Align(
+          alignment: Alignment(-0.9, 0.0),
+          child: Icon(
+            Icons.delete,
+            color: Colors.white,
+          ),
         ),
       ),
+      direction: DismissDirection.startToEnd,
+      child: CheckboxListTile(
+        title: Text(books[index].title),
+        value: books[index].realizado,
+        secondary: CircleAvatar(
+          child: Icon(books[index].realizado ? Icons.check : Icons.error),
+        ),
+        onChanged: (checked) {
+          setState(() {
+            books[index].realizado = checked!;
+          });
+        },
+      ),
+      onDismissed: (direction) {
+        setState(() {
+          Book livroRemovido = books[index];
+          books.removeAt(index);
+          _repositorio.salvarLivro(books);
+          int indiceLivroRemovido = index;
+
+          final snack = SnackBar(
+            content: Text("Livro ${livroRemovido.title} removido"),
+            action: SnackBarAction(
+                label: "Desfazer",
+                onPressed: () {
+                  setState(() {
+                    books.insert(indiceLivroRemovido, livroRemovido);
+                    _repositorio.salvarLivro(books);
+                  });
+                }),
+            duration: Duration(seconds: 3),
+          );
+
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(snack);
+        });
+      },
     );
   }
 }

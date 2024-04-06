@@ -6,6 +6,7 @@ Map<int, String> scripts = {
   1: ''' CREATE TABLE books (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           title TEXT,
+          realizado INTEGER
           );'''
 };
 
