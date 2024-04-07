@@ -1,37 +1,77 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:livros/models/book.dart';
 import 'package:livros/repositories/repositorio.dart';
 
-
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  TextEditingController controlerBook = TextEditingController();
-
+  TextEditingController controllerBook = TextEditingController();
   Repositorio _repositorio = Repositorio();
   List<Book> books = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _repositorio.recuperarLivro().then((dados) {
-      setState(() {
-        books = dados;
-      });
+  List<Book> searchedBooks = [];
+
+  void _pesquisarLivro() async {
+    String query = controllerBook.text.trim();
+    if (query.isNotEmpty) {
+      String apiKey = 'AIzaSyCLCJ2Yv_4lFRI4Z-MQbrkHxmdSNfqDvmM';
+      String apiUrl = 'https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=10&key=$apiKey';
+
+      var response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+        List<Book> searchResults = [];
+
+        for (var item in data['items']) {
+          searchResults.add(Book(title: item['volumeInfo']['title'] ?? '', realizado: false));
+        }
+
+        setState(() {
+          searchedBooks = searchResults;
+        });
+      } else {
+        print('Erro ao buscar livros: ${response.statusCode}');
+      }
+    }
+  }
+
+  void _adicionarLivro(Book book) {
+    setState(() {
+      books.add(book);
+      _repositorio.salvarLivro(books);
     });
   }
 
-  void _adicionarLivro() {
+  void _removerLivro(int index) {
     setState(() {
-      Book book = Book(title: controlerBook.text, realizado: false);
-      books.add(book);
-      controlerBook.text = '';
+      Book livroRemovido = books[index];
+      books.removeAt(index);
       _repositorio.salvarLivro(books);
+
+      final snack = SnackBar(
+        content: Text("Livro ${livroRemovido.title} removido"),
+        action: SnackBarAction(
+          label: "Desfazer",
+          onPressed: () {
+            setState(() {
+              books.insert(index, livroRemovido);
+              _repositorio.salvarLivro(books);
+            });
+          },
+        ),
+        duration: Duration(seconds: 3),
+      );
+
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(snack);
     });
   }
 
@@ -41,8 +81,7 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Colors.blueGrey,
         centerTitle: true,
-        title: Text(
-            "Lista de livros"),
+        title: Text("Lista de livros"),
       ),
       body: Column(
         children: [
@@ -51,75 +90,96 @@ class _HomePageState extends State<HomePage> {
             child: Row(
               children: [
                 Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(labelText: "Novo Livro"),
-                      controller: controlerBook,
-                    )),
-                ElevatedButton(onPressed: _adicionarLivro, child: Text("ADD"))
+                  child: TextField(
+                    decoration: InputDecoration(labelText: "Novo Livro"),
+                    controller: controllerBook,
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: _pesquisarLivro,
+                  child: Text("PESQUISAR"),
+                )
               ],
             ),
           ),
-          Expanded(child: ListView.builder(
-              itemCount: books.length,
-              itemBuilder: contruirListView))
+          searchedBooks.isNotEmpty
+              ? Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    "Resultados da Pesquisa",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: searchedBooks.length,
+                    itemBuilder: (context, index) => ListTile(
+                      title: Text(searchedBooks[index].title),
+                      trailing: ElevatedButton(
+                        onPressed: () => _adicionarLivro(searchedBooks[index]),
+                        child: Text("Adicionar"),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+              : SizedBox(),
+          books.isNotEmpty
+              ? Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    "Minha Lista de Livros",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: books.length,
+                    itemBuilder: (context, index) => Dismissible(
+                      key: Key(books[index].title),
+                      background: Container(
+                        color: Colors.red,
+                        child: Icon(Icons.delete, color: Colors.white),
+                        alignment: Alignment.centerRight,
+                        padding: EdgeInsets.only(right: 20.0),
+                      ),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (direction) {
+                        _removerLivro(index);
+                      },
+                      child: ListTile(
+                        title: Text(books[index].title),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+              : SizedBox(),
         ],
       ),
     );
   }
-
-  Widget contruirListView(BuildContext context, int index) {
-    return Dismissible(
-      key: Key(DateTime
-          .now()
-          .microsecondsSinceEpoch
-          .toString()),
-      background: Container(
-        color: Colors.red,
-        child: Align(
-          alignment: Alignment(-0.9, 0.0),
-          child: Icon(
-            Icons.delete,
-            color: Colors.white,
-          ),
-        ),
-      ),
-      direction: DismissDirection.startToEnd,
-      child: CheckboxListTile(
-        title: Text(books[index].title),
-        value: books[index].realizado,
-        secondary: CircleAvatar(
-          child: Icon(books[index].realizado ? Icons.check : Icons.error),
-        ),
-        onChanged: (checked) {
-          setState(() {
-            books[index].realizado = checked!;
-          });
-        },
-      ),
-      onDismissed: (direction) {
-        setState(() {
-          Book livroRemovido = books[index];
-          books.removeAt(index);
-          _repositorio.salvarLivro(books);
-          int indiceLivroRemovido = index;
-
-          final snack = SnackBar(
-            content: Text("Livro ${livroRemovido.title} removido"),
-            action: SnackBarAction(
-                label: "Desfazer",
-                onPressed: () {
-                  setState(() {
-                    books.insert(indiceLivroRemovido, livroRemovido);
-                    _repositorio.salvarLivro(books);
-                  });
-                }),
-            duration: Duration(seconds: 3),
-          );
-
-          ScaffoldMessenger.of(context).removeCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(snack);
-        });
-      },
-    );
-  }
 }
+
+void main() {
+  runApp(MaterialApp(
+    title: 'Lista de Livros',
+    theme: ThemeData(
+      primarySwatch: Colors.blueGrey,
+    ),
+    home: HomePage(),
+  ));
+}
+
