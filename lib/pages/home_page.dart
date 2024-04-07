@@ -182,4 +182,3 @@ void main() {
     home: HomePage(),
   ));
 }
-
