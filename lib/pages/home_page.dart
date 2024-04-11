@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:livros/models/book.dart';
 import 'package:livros/repositories/repositorio.dart';
+import 'package:livros/pages/minha_lista.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -21,7 +22,7 @@ class _HomePageState extends State<HomePage> {
   void _pesquisarLivro() async {
     String query = controllerBook.text.trim();
     if (query.isNotEmpty) {
-      String apiKey = 'AIzaSyCLCJ2Yv_4lFRI4Z-MQbrkHxmdSNfqDvmM';
+      String apiKey = 'API KEY';
       String apiUrl = 'https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=10&key=$apiKey';
 
       var response = await http.get(Uri.parse(apiUrl));
@@ -82,6 +83,17 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.blueGrey,
         centerTitle: true,
         title: Text("Lista de livros"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MinhaListaPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
