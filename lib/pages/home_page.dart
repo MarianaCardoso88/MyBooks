@@ -80,12 +80,14 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blueGrey,
+        backgroundColor: Colors.indigo[900],
         centerTitle: true,
-        title: Text("Lista de livros"),
+        title: Text("Lista de livros",
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 20.0)),
         actions: [
           IconButton(
             icon: Icon(Icons.list),
+            color: Colors.white,
             onPressed: () {
               Navigator.push(
                 context,
@@ -109,7 +111,8 @@ class _HomePageState extends State<HomePage> {
                 ),
                 ElevatedButton(
                   onPressed: _pesquisarLivro,
-                  child: Text("PESQUISAR"),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo[900]),
+                  child: Text("PESQUISAR", style: TextStyle(color: Colors.white)),
                 )
               ],
             ),
@@ -133,7 +136,8 @@ class _HomePageState extends State<HomePage> {
                       title: Text(searchedBooks[index].title),
                       trailing: ElevatedButton(
                         onPressed: () => _adicionarLivro(searchedBooks[index]),
-                        child: Text("Adicionar"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo[900]),
+                        child: Text("Adicionar", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ),
@@ -148,10 +152,14 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.only(right: 16.0, left: 16.0, top: 20.0),
                   child: Text(
-                    "Minha Lista de Livros",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    "MINHA LISTA DE LIVROS",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.0,
+                        color: Colors.indigo[900],
+                    ),
                   ),
                 ),
                 Expanded(
